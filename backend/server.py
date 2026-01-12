@@ -201,12 +201,23 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # ============= PLAN LIMITS =============
 
-def get_plan_limits(plan: str) -> Dict[str, Any]:
+def get_plan_limits(plan: str, user_email: str = None) -> Dict[str, Any]:
+    # Founder account gets unlimited access
+    if user_email and user_email.lower() == FOUNDER_EMAIL.lower():
+        return {
+            "max_domains": 999,
+            "daily_limit_per_domain": 10000,
+            "warmup_required": True,
+            "modes": ["cold_outreach", "founder_outbound", "newsletter"],
+            "all_features_unlocked": True
+        }
+    
     limits = {
         "free": {"max_domains": 1, "daily_limit_per_domain": 20, "warmup_required": True, "modes": ["cold_outreach"]},
         "premium": {"max_domains": 3, "daily_limit_per_domain": 150, "warmup_required": True, "modes": ["cold_outreach", "founder_outbound"]},
         "pro": {"max_domains": 10, "daily_limit_per_domain": 300, "warmup_required": True, "modes": ["cold_outreach", "founder_outbound", "newsletter"]},
-        "enterprise": {"max_domains": 50, "daily_limit_per_domain": 1000, "warmup_required": True, "modes": ["cold_outreach", "founder_outbound", "newsletter"]}
+        "enterprise": {"max_domains": 50, "daily_limit_per_domain": 1000, "warmup_required": True, "modes": ["cold_outreach", "founder_outbound", "newsletter"]},
+        "enterprise_internal": {"max_domains": 999, "daily_limit_per_domain": 10000, "warmup_required": True, "modes": ["cold_outreach", "founder_outbound", "newsletter"], "all_features_unlocked": True}
     }
     return limits.get(plan, limits["free"])
 
