@@ -228,9 +228,9 @@ export default function Layout({ children, user, onLogout }) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Crown className="w-3 h-3 text-slate-400" />
-                <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${getPlanBadge(user.plan)}`}>
-                  {user.plan} Plan
+                <Crown className={`w-3 h-3 ${user.role === 'founder' ? 'text-amber-500' : 'text-slate-400'}`} />
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${getPlanBadge(user.plan)}`}>
+                  {getPlanLabel(user.plan, user.role)}
                 </span>
               </div>
             </div>
