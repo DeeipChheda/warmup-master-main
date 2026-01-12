@@ -15,9 +15,18 @@ import bcrypt
 from apscheduler.schedulers.background import BackgroundScheduler
 import random
 import asyncio
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# AI Integration
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    AI_ENABLED = True
+except ImportError:
+    AI_ENABLED = False
+    logging.warning("emergentintegrations not available. Spam scoring disabled.")
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
