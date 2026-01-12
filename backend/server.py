@@ -173,6 +173,64 @@ class PasswordResetToken(BaseModel):
     expires_at: datetime
     used: bool = False
 
+class SendingAccount(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    email: EmailStr
+    provider: str  # gmail, outlook, smtp
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_username: Optional[str] = None
+    smtp_password_encrypted: Optional[str] = None
+    smtp_use_tls: bool = True
+    daily_send_limit: int = 50
+    reputation_score: int = 100
+    health_status: str = "healthy"  # healthy, risky, critical
+    warmup_enabled: bool = False
+    warmup_day: int = 0
+    warmup_completed: bool = False
+    bounce_rate: float = 0.0
+    spam_rate: float = 0.0
+    emails_sent_today: int = 0
+    last_activity: Optional[datetime] = None
+    is_verified: bool = False
+    is_paused: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SendingAccountCreate(BaseModel):
+    email: EmailStr
+    provider: str
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_use_tls: bool = True
+    warmup_enabled: bool = True
+
+class SendingAccountUpdate(BaseModel):
+    daily_send_limit: Optional[int] = None
+    warmup_enabled: Optional[bool] = None
+    is_paused: Optional[bool] = None
+
+class WarmupLog(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sending_account_id: str
+    emails_sent: int = 0
+    replies_received: int = 0
+    spam_flags: int = 0
+    bounce_count: int = 0
+    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class WarmupStats(BaseModel):
+    total_sent: int
+    total_replies: int
+    reply_rate: float
+    current_day: int
+    status: str
+
 class WarmupLog(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
