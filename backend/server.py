@@ -268,6 +268,44 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
+# ============= SMTP ENCRYPTION HELPERS =============
+
+from cryptography.fernet import Fernet
+
+# Generate encryption key (in production, store in environment variable)
+ENCRYPTION_KEY = os.environ.get('SMTP_ENCRYPTION_KEY', Fernet.generate_key()).encode() if isinstance(os.environ.get('SMTP_ENCRYPTION_KEY', Fernet.generate_key()), str) else os.environ.get('SMTP_ENCRYPTION_KEY', Fernet.generate_key())
+cipher_suite = Fernet(ENCRYPTION_KEY if isinstance(ENCRYPTION_KEY, bytes) else ENCRYPTION_KEY.encode())
+
+def encrypt_smtp_password(password: str) -> str:
+    """Encrypt SMTP password using AES-256"""
+    return cipher_suite.encrypt(password.encode()).decode()
+
+def decrypt_smtp_password(encrypted_password: str) -> str:
+    """Decrypt SMTP password"""
+    return cipher_suite.decrypt(encrypted_password.encode()).decode()
+
+async def verify_smtp_connection(host: str, port: int, username: str, password: str, use_tls: bool) -> tuple[bool, str]:
+    """Test SMTP connection"""
+    import smtplib
+    from email.mime.text import MIMEText
+    
+    try:
+        if use_tls:
+            server = smtplib.SMTP(host, port, timeout=10)
+            server.starttls()
+        else:
+            server = smtplib.SMTP(host, port, timeout=10)
+        
+        server.login(username, password)
+        server.quit()
+        return True, "Connection successful"
+    except smtplib.SMTPAuthenticationError:
+        return False, "Authentication failed - invalid credentials"
+    except smtplib.SMTPConnectError:
+        return False, "Connection failed - check host and port"
+    except Exception as e:
+        return False, f"Connection error: {str(e)}"
+
 def create_token(user_id: str) -> str:
     payload = {
         'user_id': user_id,
