@@ -38,9 +38,90 @@ export default function AuthPage({ setUser }) {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await api.post('/auth/forgot-password', { email: forgotEmail });
+      setResetSent(true);
+      toast.success('Password reset link sent! Check your email.');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to send reset link');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md">{/* Forgot Password Modal */}
+      <Dialog open={showForgotPassword} onOpenChange={(open) => {
+        setShowForgotPassword(open);
+        if (!open) {
+          setResetSent(false);
+          setForgotEmail('');
+        }
+      }}>
+        <DialogContent data-testid="forgot-password-modal">
+          <DialogHeader>
+            <DialogTitle>Reset Your Password</DialogTitle>
+            <DialogDescription>
+              {resetSent 
+                ? "We've sent a password reset link to your email."
+                : "Enter your email address and we'll send you a link to reset your password."}
+            </DialogDescription>
+          </DialogHeader>
+          {resetSent ? (
+            <div className="py-4">
+              <p className="text-sm text-slate-600 mb-4">
+                Check your inbox for instructions to reset your password. The link will expire in 1 hour.
+              </p>
+              <Button 
+                onClick={() => setShowForgotPassword(false)} 
+                className="w-full"
+              >
+                Close
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email Address</Label>
+                  <Input
+                    id="forgot-email"
+                    data-testid="forgot-email-input"
+                    type="email"
+                    placeholder="you@company.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    data-testid="send-reset-button"
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-slate-900 hover:bg-slate-800"
+                  >
+                    {loading ? 'Sending...' : 'Send Reset Link'}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-900 mb-4">
             <ShieldCheck className="w-8 h-8 text-white" />
