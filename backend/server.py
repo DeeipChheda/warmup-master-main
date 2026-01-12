@@ -900,6 +900,114 @@ async def remove_suppressed_email(email_id: str, current_user: User = Depends(ge
     
     return {"message": "Email removed from suppression list"}
 
+@api_router.post("/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Send password reset email"""
+    import hashlib
+    import secrets
+    
+    # Find user (always return success to prevent email enumeration)
+    user_doc = await db.users.find_one({"email": request.email.lower()}, {"_id": 0})
+    
+    if not user_doc:
+        # Still return success but don't send email
+        logger.info(f"Password reset requested for non-existent email: {request.email}")
+        return {"success": True, "message": "If that email exists, we sent a reset link"}
+    
+    # Generate secure token
+    reset_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(reset_token.encode()).hexdigest()
+    
+    # Store token with 1 hour expiry
+    token_data = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_doc["id"],
+        "token_hash": token_hash,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+        "used": False
+    }
+    
+    await db.password_reset_tokens.insert_one(token_data)
+    
+    # In production, send actual email here
+    # For now, log the reset link
+    reset_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={reset_token}"
+    logger.info(f"Password reset link for {request.email}: {reset_link}")
+    
+    # TODO: Send actual email with template
+    # await send_password_reset_email(user_doc["email"], user_doc["full_name"], reset_link)
+    
+    return {"success": True, "message": "If that email exists, we sent a reset link"}
+
+@api_router.get("/auth/verify-reset-token")
+async def verify_reset_token(token: str):
+    """Verify if reset token is valid"""
+    import hashlib
+    
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    token_doc = await db.password_reset_tokens.find_one({
+        "token_hash": token_hash,
+        "used": False
+    }, {"_id": 0})
+    
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(token_doc["expires_at"])
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    
+    return {"success": True, "valid": True}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password with token"""
+    import hashlib
+    
+    # Validate password strength
+    if len(request.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    
+    # Hash token for lookup
+    token_hash = hashlib.sha256(request.token.encode()).hexdigest()
+    
+    # Find and verify token
+    token_doc = await db.password_reset_tokens.find_one({
+        "token_hash": token_hash,
+        "used": False
+    }, {"_id": 0})
+    
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(token_doc["expires_at"])
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    
+    # Hash new password
+    password_hash = hash_password(request.new_password)
+    
+    # Update user password
+    await db.users.update_one(
+        {"id": token_doc["user_id"]},
+        {"$set": {
+            "password": password_hash,
+            "password_changed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Mark token as used
+    await db.password_reset_tokens.update_one(
+        {"token_hash": token_hash},
+        {"$set": {"used": True}}
+    )
+    
+    return {"success": True, "message": "Password reset successfully"}
+
 @api_router.post("/spam-score", response_model=SpamScoreResponse)
 async def check_spam_score(request: SpamScoreRequest, current_user: User = Depends(get_current_user)):
     """Analyze email content for spam risk using AI"""
