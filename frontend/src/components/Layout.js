@@ -60,9 +60,16 @@ export default function Layout({ children, user, onLogout }) {
       free: 'bg-slate-100 text-slate-700',
       premium: 'bg-blue-100 text-blue-700',
       pro: 'bg-purple-100 text-purple-700',
-      enterprise: 'bg-amber-100 text-amber-700'
+      enterprise: 'bg-amber-100 text-amber-700',
+      enterprise_internal: 'bg-gradient-to-r from-amber-100 to-purple-100 text-slate-900 border border-amber-300'
     };
     return colors[plan] || colors.free;
+  };
+
+  const getPlanLabel = (plan, role) => {
+    if (role === 'founder') return 'Founder';
+    if (plan === 'enterprise_internal') return 'Enterprise';
+    return plan.charAt(0).toUpperCase() + plan.slice(1);
   };
 
   return (
