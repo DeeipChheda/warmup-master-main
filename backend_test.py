@@ -657,8 +657,19 @@ class EmailMarketingAPITester:
             return False
 
 def main():
-    tester = EmailMarketingAPITester()
-    success = tester.run_comprehensive_test()
+    import sys
+    
+    # Check if we should run sending accounts tests specifically
+    if len(sys.argv) > 1 and sys.argv[1] == "sending-accounts":
+        tester = EmailMarketingAPITester()
+        success = tester.run_sending_accounts_test()
+    else:
+        tester = EmailMarketingAPITester()
+        success = tester.run_comprehensive_test()
+    
+    # Create test_reports directory if it doesn't exist
+    import os
+    os.makedirs("/app/test_reports", exist_ok=True)
     
     # Save detailed results
     results_file = f"/app/test_reports/backend_test_results_{int(time.time())}.json"
