@@ -1,0 +1,118 @@
+{
+  "summary": {
+    "total_tests": 18,
+    "passed_tests": 18,
+    "success_rate": 100.0,
+    "timestamp": "2026-01-12T20:20:32.480669"
+  },
+  "detailed_results": [
+    {
+      "test": "Login with Test Credentials",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:31.785563"
+    },
+    {
+      "test": "Get Sending Accounts (Empty)",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:31.819759"
+    },
+    {
+      "test": "Sending Accounts Empty Check",
+      "success": true,
+      "details": "List is empty as expected",
+      "timestamp": "2026-01-12T20:20:31.820438"
+    },
+    {
+      "test": "Create Sending Account",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:31.862877"
+    },
+    {
+      "test": "SMTP Password Encryption",
+      "success": true,
+      "details": "Password is properly encrypted",
+      "timestamp": "2026-01-12T20:20:31.863567"
+    },
+    {
+      "test": "Get Sending Accounts (With Data)",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:31.901350"
+    },
+    {
+      "test": "Sending Accounts Data Check",
+      "success": true,
+      "details": "Found 1 account(s)",
+      "timestamp": "2026-01-12T20:20:31.901980"
+    },
+    {
+      "test": "Get Single Sending Account",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:31.961196"
+    },
+    {
+      "test": "Account Fields Check",
+      "success": true,
+      "details": "All required fields present",
+      "timestamp": "2026-01-12T20:20:31.962695"
+    },
+    {
+      "test": "Verify Sending Account",
+      "success": true,
+      "details": "Status: 400",
+      "timestamp": "2026-01-12T20:20:32.273403"
+    },
+    {
+      "test": "Verify Endpoint Working",
+      "success": true,
+      "details": "Verification endpoint responded as expected",
+      "timestamp": "2026-01-12T20:20:32.274040"
+    },
+    {
+      "test": "Pause Sending Account",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:32.311710"
+    },
+    {
+      "test": "Resume Sending Account",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:32.352396"
+    },
+    {
+      "test": "Get Warmup Stats",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:32.392206"
+    },
+    {
+      "test": "Warmup Stats Fields",
+      "success": true,
+      "details": "All required stats fields present",
+      "timestamp": "2026-01-12T20:20:32.393493"
+    },
+    {
+      "test": "Update Sending Account",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:32.434029"
+    },
+    {
+      "test": "Daily Limit Update Check",
+      "success": true,
+      "details": "Daily send limit updated correctly",
+      "timestamp": "2026-01-12T20:20:32.434698"
+    },
+    {
+      "test": "Delete Sending Account",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T20:20:32.479779"
+    }
+  ]
+}
