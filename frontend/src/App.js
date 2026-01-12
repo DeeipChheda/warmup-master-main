@@ -208,48 +208,6 @@ function App() {
       <Toaster position="top-right" />
     </div>
   );
-}
-              ) : (
-                <Navigate to="/auth" />
-              )
-            }
-          />
-          <Route
-            path="/domains"
-            element={
-              user ? (
-                <Layout user={user} onLogout={handleLogout}>
-                  <DomainsPage user={user} />
-                </Layout>
-              ) : (
-                <Navigate to="/auth" />
-              )
-            }
-          />
-          <Route
-            path="/contacts"
-            element={
-              user ? (
-                <Layout user={user} onLogout={handleLogout}>
-                  <ContactsPage user={user} />
-                </Layout>
-              ) : (
-                <Navigate to="/auth" />
-              )
-            }
-          />
-          <Route
-            path="/campaigns"
-            element={
-              user ? (
-                <Layout user={user} onLogout={handleLogout}>
-                  <CampaignsPage user={user} />
-                </Layout>
-              ) : (
-                <Navigate to="/auth" />
-              )
-            }
-          />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" />
