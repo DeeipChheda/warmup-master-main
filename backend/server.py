@@ -213,23 +213,57 @@ class SendingAccountUpdate(BaseModel):
     daily_send_limit: Optional[int] = None
     warmup_enabled: Optional[bool] = None
     is_paused: Optional[bool] = None
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_use_tls: Optional[bool] = None
+    # Warmup settings
+    warmup_daily_volume: Optional[int] = None
+    warmup_ramp_up: Optional[int] = None
+    warmup_reply_rate: Optional[float] = None
+    warmup_random_delay_min: Optional[int] = None
+    warmup_random_delay_max: Optional[int] = None
+    warmup_weekend_sending: Optional[bool] = None
+    warmup_auto_pause_bounce_rate: Optional[float] = None
+    warmup_auto_pause_spam_threshold: Optional[int] = None
 
-class WarmupLog(BaseModel):
+class SendingAccountWarmupLog(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     sending_account_id: str
+    day: int = 0
     emails_sent: int = 0
+    emails_delivered: int = 0
     replies_received: int = 0
     spam_flags: int = 0
     bounce_count: int = 0
+    open_count: int = 0
     date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class WarmupStats(BaseModel):
     total_sent: int
+    total_delivered: int
     total_replies: int
+    total_opens: int
+    total_bounces: int
+    total_spam_flags: int
     reply_rate: float
+    open_rate: float
+    bounce_rate: float
     current_day: int
     status: str
+    daily_logs: List[Dict[str, Any]] = []
+
+class WarmupSettings(BaseModel):
+    daily_volume: int = 5
+    ramp_up: int = 2  # emails to add per day
+    reply_rate: float = 30.0  # target reply rate %
+    random_delay_min: int = 60  # seconds
+    random_delay_max: int = 300  # seconds
+    weekend_sending: bool = False
+    auto_pause_bounce_rate: float = 4.0  # %
+    auto_pause_spam_threshold: int = 3  # count
 
 class WarmupLog(BaseModel):
     model_config = ConfigDict(extra="ignore")
