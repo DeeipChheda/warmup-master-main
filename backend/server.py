@@ -37,6 +37,9 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
 JWT_ALGORITHM = 'HS256'
 
+# Founder account configuration (internal use only)
+FOUNDER_EMAIL = "deeip.temp@gmail.com"
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
@@ -48,7 +51,9 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     full_name: str
-    plan: str = "free"  # free, premium, pro, enterprise
+    plan: str = "free"  # free, premium, pro, enterprise, enterprise_internal
+    role: Optional[str] = None  # founder, admin, user
+    billing_status: Optional[str] = None  # active, exempt
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserCreate(BaseModel):
