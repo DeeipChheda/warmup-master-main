@@ -143,6 +143,20 @@ class CampaignCreate(BaseModel):
     body: str
     recipients: List[str]
 
+class SuppressedEmail(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    email: EmailStr
+    reason: str  # hard_bounce, spam_complaint, unsubscribe, manual
+    source: Optional[str] = None  # campaign_id or manual
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SuppressedEmailCreate(BaseModel):
+    email: EmailStr
+    reason: str
+    source: Optional[str] = None
+
 class WarmupLog(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
