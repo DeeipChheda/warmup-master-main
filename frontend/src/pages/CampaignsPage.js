@@ -8,8 +8,10 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Progress } from '../components/ui/progress';
 import { toast } from 'sonner';
-import { Plus, Send, Mail, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Send, Mail, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react';
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState([]);
@@ -17,6 +19,8 @@ export default function CampaignsPage() {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [spamScore, setSpamScore] = useState(null);
+  const [analyzingSpam, setAnalyzingSpam] = useState(false);
   const [formData, setFormData] = useState({
     domain_id: '',
     name: '',
