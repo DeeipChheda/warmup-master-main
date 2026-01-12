@@ -206,6 +206,79 @@ export default function CampaignsPage() {
                     required
                   />
                 </div>
+
+                {/* AI Spam Score Analysis */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-base font-semibold flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      AI Spam Risk Analysis
+                    </Label>
+                    <Button
+                      type="button"
+                      data-testid="analyze-spam-button"
+                      variant="outline"
+                      size="sm"
+                      onClick={analyzeSpamScore}
+                      disabled={analyzingSpam || !formData.subject || !formData.body}
+                    >
+                      {analyzingSpam ? 'Analyzing...' : 'Analyze'}
+                    </Button>
+                  </div>
+
+                  {spamScore && (
+                    <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="text-3xl font-bold text-slate-900">{spamScore.score}</div>
+                          <div>
+                            <div className="text-xs text-slate-500">Spam Risk Score</div>
+                            {getRiskBadge(spamScore.risk_level)}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600">{spamScore.predicted_inbox_rate}%</div>
+                          <div className="text-xs text-slate-500">Inbox Rate</div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-xs text-slate-600 mb-1">Inbox Placement Prediction</div>
+                        <Progress value={spamScore.predicted_inbox_rate} className="h-2" />
+                      </div>
+
+                      {spamScore.recommendations.length > 0 && (
+                        <Alert className="bg-white">
+                          <AlertTriangle className="w-4 h-4" />
+                          <AlertDescription>
+                            <div className="font-semibold mb-2">Recommendations:</div>
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                              {spamScore.recommendations.slice(0, 3).map((rec, idx) => (
+                                <li key={idx}>{rec}</li>
+                              ))}
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {spamScore.risk_level === 'critical' && (
+                        <Alert className="bg-red-50 border-red-200">
+                          <AlertTriangle className="w-4 h-4 text-red-600" />
+                          <AlertDescription className="text-red-800">
+                            <strong>Warning:</strong> This email has a very high spam risk and may damage your sender reputation.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
+
+                  {!spamScore && (
+                    <p className="text-sm text-slate-500 italic">
+                      Analyze your email to get AI-powered deliverability insights before sending
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="recipients">Recipients *</Label>
                   <Textarea
