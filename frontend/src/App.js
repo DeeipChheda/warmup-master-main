@@ -72,6 +72,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={!user ? <AuthPage setUser={setUser} /> : <Navigate to="/" />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route
             path="/"
             element={
