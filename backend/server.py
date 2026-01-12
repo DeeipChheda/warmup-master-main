@@ -563,7 +563,7 @@ async def login(credentials: UserLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Auto-upgrade founder account if needed
-    if credentials.email.lower() == FOUNDER_EMAIL.lower():
+    if is_founder_email(credentials.email):
         if user_doc.get('plan') != 'enterprise_internal' or user_doc.get('role') != 'founder':
             await db.users.update_one(
                 {"email": credentials.email},
