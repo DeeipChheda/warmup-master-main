@@ -208,11 +208,6 @@ function App() {
       <Toaster position="top-right" />
     </div>
   );
-        </Routes>
-      </BrowserRouter>
-      <Toaster position="top-right" />
-    </div>
-  );
 }
 
 export default App;
