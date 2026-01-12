@@ -532,8 +532,8 @@ async def register(user_input: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Determine if this is the founder account
-    is_founder = user_input.email.lower() == FOUNDER_EMAIL.lower()
+    # Determine if this is a founder account
+    is_founder = is_founder_email(user_input.email)
     
     # Create user with founder privileges if applicable
     user = User(
