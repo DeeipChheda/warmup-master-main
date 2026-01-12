@@ -525,11 +525,16 @@ async def register(user_input: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
+    # Determine if this is the founder account
+    is_founder = user_input.email.lower() == FOUNDER_EMAIL.lower()
+    
+    # Create user with founder privileges if applicable
     user = User(
         email=user_input.email,
         full_name=user_input.full_name,
-        plan="free"
+        plan="enterprise_internal" if is_founder else "free",
+        role="founder" if is_founder else None,
+        billing_status="exempt" if is_founder else None
     )
     
     user_dict = user.model_dump()
@@ -549,6 +554,21 @@ async def login(credentials: UserLogin):
     
     if not verify_password(credentials.password, user_doc['password']):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Auto-upgrade founder account if needed
+    if credentials.email.lower() == FOUNDER_EMAIL.lower():
+        if user_doc.get('plan') != 'enterprise_internal' or user_doc.get('role') != 'founder':
+            await db.users.update_one(
+                {"email": credentials.email},
+                {"$set": {
+                    "plan": "enterprise_internal",
+                    "role": "founder",
+                    "billing_status": "exempt"
+                }}
+            )
+            user_doc['plan'] = 'enterprise_internal'
+            user_doc['role'] = 'founder'
+            user_doc['billing_status'] = 'exempt'
     
     if isinstance(user_doc['created_at'], str):
         user_doc['created_at'] = datetime.fromisoformat(user_doc['created_at'])
