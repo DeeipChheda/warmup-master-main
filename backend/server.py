@@ -148,6 +148,18 @@ class DashboardStats(BaseModel):
     domains_in_warmup: int
     average_health_score: float
 
+class SpamScoreRequest(BaseModel):
+    subject: str
+    body: str
+    mode: str = "cold_outreach"
+
+class SpamScoreResponse(BaseModel):
+    score: int  # 0-100, lower is better
+    risk_level: str  # low, medium, high, critical
+    recommendations: List[str]
+    predicted_inbox_rate: int  # 0-100%
+    details: Dict[str, Any]
+
 # ============= AUTH HELPERS =============
 
 def hash_password(password: str) -> str:
