@@ -618,7 +618,7 @@ async def get_domains(current_user: User = Depends(get_current_user)):
 @api_router.post("/domains", response_model=Domain)
 async def create_domain(domain_input: DomainCreate, current_user: User = Depends(get_current_user)):
     # Check plan limits
-    plan_limits = get_plan_limits(current_user.plan)
+    plan_limits = get_plan_limits(current_user.plan, current_user.email)
     existing_domains = await db.domains.count_documents({"user_id": current_user.id})
     
     if existing_domains >= plan_limits['max_domains']:
