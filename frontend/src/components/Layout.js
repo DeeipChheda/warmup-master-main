@@ -16,10 +16,15 @@ export default function Layout({ children, user, onLogout }) {
     free: ['dashboard', 'warmup', 'domains', 'contacts', 'campaigns'],
     premium: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics'],
     pro: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics', 'deliverability', 'suppression', 'ai-assistant', 'domain-rotation'],
-    enterprise: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics', 'deliverability', 'suppression', 'ai-assistant', 'domain-rotation', 'clients']
+    enterprise: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics', 'deliverability', 'suppression', 'ai-assistant', 'domain-rotation', 'clients'],
+    enterprise_internal: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics', 'deliverability', 'suppression', 'ai-assistant', 'domain-rotation', 'clients']
   };
 
   const hasAccess = (feature) => {
+    // Founder account always has access
+    if (user.role === 'founder' || user.plan === 'enterprise_internal') {
+      return true;
+    }
     return planFeatures[user.plan]?.includes(feature);
   };
 
