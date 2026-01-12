@@ -1673,7 +1673,15 @@ scheduler.add_job(
     lambda: asyncio.run(progress_warmup()),
     'cron',
     hour=0,  # Run at midnight
-    minute=0
+    minute=0,
+    id='domain_warmup'
+)
+scheduler.add_job(
+    lambda: asyncio.run(progress_sending_account_warmup()),
+    'cron',
+    hour=0,
+    minute=5,  # Run 5 mins after domain warmup
+    id='sending_account_warmup'
 )
 scheduler.start()
 
