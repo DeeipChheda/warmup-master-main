@@ -1162,6 +1162,495 @@ async def check_spam_score(request: SpamScoreRequest, current_user: User = Depen
         logging.error(f"Spam score analysis failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to analyze spam score")
 
+# ============= SENDING ACCOUNTS API =============
+
+def parse_datetime_fields(doc: dict, fields: List[str]) -> dict:
+    """Helper to parse datetime fields from MongoDB documents"""
+    for field in fields:
+        if doc.get(field) and isinstance(doc[field], str):
+            doc[field] = datetime.fromisoformat(doc[field].replace('Z', '+00:00'))
+    return doc
+
+@api_router.get("/sending-accounts", response_model=List[SendingAccount])
+async def get_sending_accounts(current_user: User = Depends(get_current_user)):
+    """Get all sending accounts for the current user"""
+    accounts = await db.sending_accounts.find({"user_id": current_user.id}, {"_id": 0}).to_list(None)
+    
+    for account in accounts:
+        parse_datetime_fields(account, ['created_at', 'updated_at', 'last_activity'])
+        # Don't expose encrypted password
+        if 'smtp_password_encrypted' in account:
+            account['smtp_password_encrypted'] = '********' if account['smtp_password_encrypted'] else None
+    
+    return accounts
+
+@api_router.post("/sending-accounts", response_model=SendingAccount)
+async def create_sending_account(account_input: SendingAccountCreate, current_user: User = Depends(get_current_user)):
+    """Create a new sending account"""
+    # Check if account already exists
+    existing = await db.sending_accounts.find_one({
+        "email": account_input.email, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Sending account with this email already exists")
+    
+    # Validate SMTP fields for SMTP provider
+    if account_input.provider == "smtp":
+        if not account_input.smtp_host or not account_input.smtp_port:
+            raise HTTPException(status_code=400, detail="SMTP host and port are required for SMTP provider")
+    
+    # Create the account
+    account = SendingAccount(
+        user_id=current_user.id,
+        email=account_input.email,
+        provider=account_input.provider,
+        smtp_host=account_input.smtp_host,
+        smtp_port=account_input.smtp_port,
+        smtp_username=account_input.smtp_username or account_input.email,
+        smtp_password_encrypted=encrypt_smtp_password(account_input.smtp_password) if account_input.smtp_password else None,
+        smtp_use_tls=account_input.smtp_use_tls,
+        warmup_enabled=account_input.warmup_enabled,
+        warmup_status="inactive"
+    )
+    
+    account_dict = account.model_dump()
+    account_dict['created_at'] = account_dict['created_at'].isoformat()
+    account_dict['updated_at'] = account_dict['updated_at'].isoformat()
+    if account_dict.get('last_activity'):
+        account_dict['last_activity'] = account_dict['last_activity'].isoformat()
+    
+    await db.sending_accounts.insert_one(account_dict)
+    
+    # Mask password in response
+    account.smtp_password_encrypted = '********' if account.smtp_password_encrypted else None
+    
+    return account
+
+@api_router.get("/sending-accounts/{account_id}", response_model=SendingAccount)
+async def get_sending_account(account_id: str, current_user: User = Depends(get_current_user)):
+    """Get a specific sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    parse_datetime_fields(account_doc, ['created_at', 'updated_at', 'last_activity'])
+    account_doc['smtp_password_encrypted'] = '********' if account_doc.get('smtp_password_encrypted') else None
+    
+    return SendingAccount(**account_doc)
+
+@api_router.patch("/sending-accounts/{account_id}", response_model=SendingAccount)
+async def update_sending_account(account_id: str, updates: SendingAccountUpdate, current_user: User = Depends(get_current_user)):
+    """Update a sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    # Build update dict
+    update_dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    
+    for field, value in updates.model_dump(exclude_unset=True).items():
+        if field == "smtp_password" and value:
+            update_dict["smtp_password_encrypted"] = encrypt_smtp_password(value)
+        elif value is not None:
+            update_dict[field] = value
+    
+    await db.sending_accounts.update_one(
+        {"id": account_id},
+        {"$set": update_dict}
+    )
+    
+    # Fetch updated account
+    updated_doc = await db.sending_accounts.find_one({"id": account_id}, {"_id": 0})
+    parse_datetime_fields(updated_doc, ['created_at', 'updated_at', 'last_activity'])
+    updated_doc['smtp_password_encrypted'] = '********' if updated_doc.get('smtp_password_encrypted') else None
+    
+    return SendingAccount(**updated_doc)
+
+@api_router.delete("/sending-accounts/{account_id}")
+async def delete_sending_account(account_id: str, current_user: User = Depends(get_current_user)):
+    """Delete a sending account"""
+    result = await db.sending_accounts.delete_one({
+        "id": account_id,
+        "user_id": current_user.id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    # Also delete warmup logs for this account
+    await db.sending_account_warmup_logs.delete_many({"sending_account_id": account_id})
+    
+    return {"message": "Sending account deleted successfully"}
+
+@api_router.post("/sending-accounts/{account_id}/verify")
+async def verify_sending_account(account_id: str, current_user: User = Depends(get_current_user)):
+    """Verify SMTP connection for a sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    # For OAuth providers, we'd verify tokens differently
+    if account_doc['provider'] in ['gmail', 'outlook']:
+        # Mock OAuth verification - in production, verify OAuth tokens
+        await db.sending_accounts.update_one(
+            {"id": account_id},
+            {"$set": {
+                "is_verified": True,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        return {"success": True, "message": "OAuth connection verified"}
+    
+    # SMTP verification
+    if not account_doc.get('smtp_host') or not account_doc.get('smtp_port'):
+        raise HTTPException(status_code=400, detail="SMTP configuration incomplete")
+    
+    # Decrypt password
+    password = decrypt_smtp_password(account_doc['smtp_password_encrypted']) if account_doc.get('smtp_password_encrypted') else None
+    
+    if not password:
+        raise HTTPException(status_code=400, detail="SMTP password not configured")
+    
+    success, message = await verify_smtp_connection(
+        host=account_doc['smtp_host'],
+        port=account_doc['smtp_port'],
+        username=account_doc.get('smtp_username', account_doc['email']),
+        password=password,
+        use_tls=account_doc.get('smtp_use_tls', True)
+    )
+    
+    # Update verification status
+    await db.sending_accounts.update_one(
+        {"id": account_id},
+        {"$set": {
+            "is_verified": success,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if success:
+        return {"success": True, "message": message}
+    else:
+        raise HTTPException(status_code=400, detail=message)
+
+@api_router.post("/sending-accounts/{account_id}/pause")
+async def pause_sending_account(account_id: str, reason: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    """Pause a sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    await db.sending_accounts.update_one(
+        {"id": account_id},
+        {"$set": {
+            "is_paused": True,
+            "pause_reason": reason or "Manually paused",
+            "warmup_status": "paused" if account_doc.get('warmup_enabled') else account_doc.get('warmup_status', 'inactive'),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "message": "Sending account paused"}
+
+@api_router.post("/sending-accounts/{account_id}/resume")
+async def resume_sending_account(account_id: str, current_user: User = Depends(get_current_user)):
+    """Resume a paused sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    # Determine warmup status on resume
+    warmup_status = "inactive"
+    if account_doc.get('warmup_enabled'):
+        if account_doc.get('warmup_completed'):
+            warmup_status = "completed"
+        else:
+            warmup_status = "active"
+    
+    await db.sending_accounts.update_one(
+        {"id": account_id},
+        {"$set": {
+            "is_paused": False,
+            "pause_reason": None,
+            "warmup_status": warmup_status,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "message": "Sending account resumed"}
+
+# ============= WARMUP API ENDPOINTS =============
+
+@api_router.post("/sending-accounts/{account_id}/warmup/start")
+async def start_warmup(account_id: str, current_user: User = Depends(get_current_user)):
+    """Start warmup for a sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    if not account_doc.get('is_verified'):
+        raise HTTPException(status_code=400, detail="Please verify the account before starting warmup")
+    
+    if account_doc.get('is_paused'):
+        raise HTTPException(status_code=400, detail="Account is paused. Resume it first.")
+    
+    await db.sending_accounts.update_one(
+        {"id": account_id},
+        {"$set": {
+            "warmup_enabled": True,
+            "warmup_status": "active",
+            "warmup_day": account_doc.get('warmup_day', 0),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "message": "Warmup started successfully"}
+
+@api_router.post("/sending-accounts/{account_id}/warmup/pause")
+async def pause_warmup(account_id: str, current_user: User = Depends(get_current_user)):
+    """Pause warmup for a sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    await db.sending_accounts.update_one(
+        {"id": account_id},
+        {"$set": {
+            "warmup_status": "paused",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "message": "Warmup paused"}
+
+@api_router.get("/sending-accounts/{account_id}/warmup/stats", response_model=WarmupStats)
+async def get_warmup_stats(account_id: str, current_user: User = Depends(get_current_user)):
+    """Get warmup statistics for a sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    # Get warmup logs
+    logs = await db.sending_account_warmup_logs.find(
+        {"sending_account_id": account_id},
+        {"_id": 0}
+    ).sort("date", -1).to_list(30)  # Last 30 days
+    
+    total_sent = sum(log.get('emails_sent', 0) for log in logs)
+    total_delivered = sum(log.get('emails_delivered', 0) for log in logs)
+    total_replies = sum(log.get('replies_received', 0) for log in logs)
+    total_opens = sum(log.get('open_count', 0) for log in logs)
+    total_bounces = sum(log.get('bounce_count', 0) for log in logs)
+    total_spam_flags = sum(log.get('spam_flags', 0) for log in logs)
+    
+    reply_rate = (total_replies / total_sent * 100) if total_sent > 0 else 0
+    open_rate = (total_opens / total_sent * 100) if total_sent > 0 else 0
+    bounce_rate = (total_bounces / total_sent * 100) if total_sent > 0 else 0
+    
+    # Format daily logs for chart
+    daily_logs = []
+    for log in reversed(logs[:14]):  # Last 14 days for chart
+        daily_logs.append({
+            "date": log.get('date'),
+            "sent": log.get('emails_sent', 0),
+            "delivered": log.get('emails_delivered', 0),
+            "replies": log.get('replies_received', 0),
+            "opens": log.get('open_count', 0),
+            "bounces": log.get('bounce_count', 0),
+            "day": log.get('day', 0)
+        })
+    
+    return WarmupStats(
+        total_sent=total_sent,
+        total_delivered=total_delivered,
+        total_replies=total_replies,
+        total_opens=total_opens,
+        total_bounces=total_bounces,
+        total_spam_flags=total_spam_flags,
+        reply_rate=round(reply_rate, 2),
+        open_rate=round(open_rate, 2),
+        bounce_rate=round(bounce_rate, 2),
+        current_day=account_doc.get('warmup_day', 0),
+        status=account_doc.get('warmup_status', 'inactive'),
+        daily_logs=daily_logs
+    )
+
+@api_router.patch("/sending-accounts/{account_id}/warmup/settings")
+async def update_warmup_settings(account_id: str, settings: WarmupSettings, current_user: User = Depends(get_current_user)):
+    """Update warmup settings for a sending account"""
+    account_doc = await db.sending_accounts.find_one({
+        "id": account_id, 
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Sending account not found")
+    
+    await db.sending_accounts.update_one(
+        {"id": account_id},
+        {"$set": {
+            "warmup_daily_volume": settings.daily_volume,
+            "warmup_ramp_up": settings.ramp_up,
+            "warmup_reply_rate": settings.reply_rate,
+            "warmup_random_delay_min": settings.random_delay_min,
+            "warmup_random_delay_max": settings.random_delay_max,
+            "warmup_weekend_sending": settings.weekend_sending,
+            "warmup_auto_pause_bounce_rate": settings.auto_pause_bounce_rate,
+            "warmup_auto_pause_spam_threshold": settings.auto_pause_spam_threshold,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "message": "Warmup settings updated"}
+
+# ============= SENDING ACCOUNT HEALTH CHECK =============
+
+async def check_sending_account_health(account_id: str):
+    """Check and update sending account health based on metrics"""
+    account_doc = await db.sending_accounts.find_one({"id": account_id}, {"_id": 0})
+    if not account_doc:
+        return
+    
+    bounce_rate = account_doc.get('bounce_rate', 0)
+    spam_rate = account_doc.get('spam_rate', 0)
+    reputation_score = account_doc.get('reputation_score', 100)
+    
+    # Determine health status
+    health_status = "healthy"
+    should_pause = False
+    pause_reason = None
+    
+    if bounce_rate >= 4.0 or spam_rate >= 0.5:
+        health_status = "critical"
+        should_pause = True
+        pause_reason = f"Critical: High bounce rate ({bounce_rate:.1f}%) or spam rate ({spam_rate:.2f}%)"
+    elif bounce_rate >= 2.0 or spam_rate >= 0.2 or reputation_score < 70:
+        health_status = "risky"
+    
+    # Update health status
+    update_dict = {
+        "health_status": health_status,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Auto-pause if thresholds exceeded
+    if should_pause and account_doc.get('warmup_auto_pause_bounce_rate'):
+        if bounce_rate >= account_doc['warmup_auto_pause_bounce_rate']:
+            update_dict["is_paused"] = True
+            update_dict["pause_reason"] = pause_reason
+            update_dict["warmup_status"] = "paused"
+    
+    await db.sending_accounts.update_one({"id": account_id}, {"$set": update_dict})
+
+# ============= SENDING ACCOUNT WARMUP PROGRESSION =============
+
+async def progress_sending_account_warmup():
+    """Daily job to progress warmup for all active sending accounts"""
+    accounts = await db.sending_accounts.find({
+        "warmup_enabled": True,
+        "warmup_status": "active",
+        "is_paused": False
+    }, {"_id": 0}).to_list(None)
+    
+    for account in accounts:
+        current_day = account.get('warmup_day', 0)
+        new_day = current_day + 1
+        
+        # Calculate expected volume for the day
+        base_volume = account.get('warmup_daily_volume', 5)
+        ramp_up = account.get('warmup_ramp_up', 2)
+        expected_volume = base_volume + (new_day * ramp_up)
+        expected_volume = min(expected_volume, account.get('daily_send_limit', 50))
+        
+        # Simulate warmup email activity (in production, this would be actual sending)
+        delivered = int(expected_volume * random.uniform(0.95, 1.0))
+        replies = int(delivered * account.get('warmup_reply_rate', 30) / 100 * random.uniform(0.8, 1.2))
+        opens = int(delivered * random.uniform(0.4, 0.7))
+        bounces = int(expected_volume * random.uniform(0, 0.02))
+        spam_flags = 1 if random.random() < 0.01 else 0
+        
+        # Create warmup log
+        log = SendingAccountWarmupLog(
+            sending_account_id=account['id'],
+            day=new_day,
+            emails_sent=expected_volume,
+            emails_delivered=delivered,
+            replies_received=replies,
+            open_count=opens,
+            bounce_count=bounces,
+            spam_flags=spam_flags
+        )
+        
+        log_dict = log.model_dump()
+        log_dict['date'] = log_dict['date'].isoformat()
+        await db.sending_account_warmup_logs.insert_one(log_dict)
+        
+        # Update account stats
+        total_sent = account.get('total_emails_sent', 0) + expected_volume
+        total_replies = account.get('total_replies', 0) + replies
+        total_opens = account.get('total_opens', 0) + opens
+        
+        bounce_rate = (bounces / expected_volume * 100) if expected_volume > 0 else 0
+        reputation_change = -5 if bounce_rate > 2 else (2 if replies > 0 else 0)
+        new_reputation = min(100, max(0, account.get('reputation_score', 100) + reputation_change))
+        
+        warmup_completed = new_day >= 30
+        warmup_status = "completed" if warmup_completed else "active"
+        
+        await db.sending_accounts.update_one(
+            {"id": account['id']},
+            {"$set": {
+                "warmup_day": new_day,
+                "warmup_completed": warmup_completed,
+                "warmup_status": warmup_status,
+                "total_emails_sent": total_sent,
+                "total_replies": total_replies,
+                "total_opens": total_opens,
+                "bounce_rate": round(bounce_rate, 2),
+                "reputation_score": new_reputation,
+                "emails_sent_today": expected_volume,
+                "last_activity": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # Check health after update
+        await check_sending_account_health(account['id'])
+
 app.include_router(api_router)
 
 app.add_middleware(
