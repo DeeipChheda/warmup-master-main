@@ -1,15 +1,53 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
-import { LayoutDashboard, Mail, Users, Send, LogOut, ShieldCheck, Crown } from 'lucide-react';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { 
+  LayoutDashboard, Mail, Users, Send, LogOut, ShieldCheck, Crown, 
+  Flame, Server, BarChart3, Shield, Ban, Sparkles, RotateCw, 
+  Building2, Settings, TrendingUp, AlertTriangle, Lock, Zap
+} from 'lucide-react';
 
 export default function Layout({ children, user, onLogout }) {
   const location = useLocation();
 
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/domains', label: 'Domains', icon: ShieldCheck },
-    { path: '/contacts', label: 'Contacts', icon: Users },
-    { path: '/campaigns', label: 'Campaigns', icon: Send }
+  // Plan-based feature access
+  const planFeatures = {
+    free: ['dashboard', 'warmup', 'domains', 'contacts', 'campaigns'],
+    premium: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics'],
+    pro: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics', 'deliverability', 'suppression', 'ai-assistant', 'domain-rotation'],
+    enterprise: ['dashboard', 'warmup', 'domains', 'sending-accounts', 'contacts', 'campaigns', 'sequences', 'analytics', 'deliverability', 'suppression', 'ai-assistant', 'domain-rotation', 'clients']
+  };
+
+  const hasAccess = (feature) => {
+    return planFeatures[user.plan]?.includes(feature);
+  };
+
+  // Primary navigation
+  const primaryNav = [
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard, key: 'dashboard' },
+    { path: '/warmup', label: 'Warm-Up', icon: Flame, key: 'warmup', badge: 'priority', highlight: true },
+    { path: '/domains', label: 'Domains', icon: ShieldCheck, key: 'domains' },
+    { path: '/sending-accounts', label: 'Sending Accounts', icon: Server, key: 'sending-accounts' },
+    { path: '/contacts', label: 'Contacts', icon: Users, key: 'contacts' },
+    { path: '/campaigns', label: 'Campaigns', icon: Mail, key: 'campaigns' },
+    { path: '/sequences', label: 'Sequences', icon: Zap, key: 'sequences' },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3, key: 'analytics' },
+    { path: '/deliverability', label: 'Deliverability', icon: Shield, key: 'deliverability', highlight: true },
+    { path: '/suppression', label: 'Suppression', icon: Ban, key: 'suppression' }
+  ];
+
+  // Advanced features
+  const advancedNav = [
+    { path: '/ai-assistant', label: 'AI Assistant', icon: Sparkles, key: 'ai-assistant', badge: 'pro' },
+    { path: '/domain-rotation', label: 'Domain Rotation', icon: RotateCw, key: 'domain-rotation', badge: 'pro' },
+    { path: '/clients', label: 'Clients', icon: Building2, key: 'clients', badge: 'enterprise' }
+  ];
+
+  // Footer navigation
+  const footerNav = [
+    { path: '/settings', label: 'Settings', icon: Settings, key: 'settings' },
+    { path: '/upgrade', label: 'Upgrade Plan', icon: TrendingUp, key: 'upgrade', special: true }
   ];
 
   const getPlanBadge = (plan) => {
