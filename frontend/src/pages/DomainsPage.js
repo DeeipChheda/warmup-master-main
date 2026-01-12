@@ -54,7 +54,12 @@ export default function DomainsPage({ user }) {
     }
   };
 
-  const getPlanLimits = (plan) => {
+  const getPlanLimits = (plan, role) => {
+    // Founder accounts get unlimited
+    if (role === 'founder' || plan === 'enterprise_internal') {
+      return { max: 999, daily: 10000 };
+    }
+    
     const limits = {
       free: { max: 1, daily: 20 },
       premium: { max: 3, daily: 150 },
@@ -64,7 +69,7 @@ export default function DomainsPage({ user }) {
     return limits[plan] || limits.free;
   };
 
-  const planLimits = getPlanLimits(user.plan);
+  const planLimits = getPlanLimits(user.plan, user.role);
 
   if (loading) {
     return <div data-testid="domains-loading" className="p-6">Loading...</div>;
