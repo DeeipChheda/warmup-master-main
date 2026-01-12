@@ -205,6 +205,167 @@ def get_plan_limits(plan: str) -> Dict[str, Any]:
     }
     return limits.get(plan, limits["free"])
 
+# ============= AI SPAM SCORING =============
+
+async def analyze_spam_score(subject: str, body: str, mode: str = "cold_outreach") -> SpamScoreResponse:
+    """Analyze email content for spam risk using AI"""
+    
+    if not AI_ENABLED:
+        # Fallback to basic heuristics if AI is not available
+        return _basic_spam_heuristics(subject, body, mode)
+    
+    try:
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            return _basic_spam_heuristics(subject, body, mode)
+        
+        # Create AI chat instance
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"spam-analysis-{uuid.uuid4()}",
+            system_message="""You are an expert email deliverability analyst specializing in cold outreach and email marketing. 
+Analyze emails for spam indicators and provide actionable recommendations. 
+Focus on: spam trigger words, formatting issues, link density, call-to-action clarity, personalization, and compliance."""
+        ).with_model("openai", "gpt-4o")
+        
+        # Prepare analysis prompt
+        prompt = f"""Analyze this {mode.replace('_', ' ')} email for spam risk:
+
+SUBJECT: {subject}
+
+BODY:
+{body}
+
+Provide a JSON response with:
+1. spam_score: 0-100 (0=safe, 100=certain spam)
+2. risk_factors: List of specific issues found
+3. positive_factors: List of good practices identified
+4. recommendations: Specific improvements to make
+5. predicted_inbox_rate: 0-100% estimated inbox placement
+
+Format: {{"spam_score": int, "risk_factors": [str], "positive_factors": [str], "recommendations": [str], "predicted_inbox_rate": int}}"""
+        
+        # Get AI analysis
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        # Parse AI response
+        try:
+            # Try to extract JSON from response
+            response_text = response.strip()
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0].strip()
+            
+            analysis = json.loads(response_text)
+            
+            spam_score = min(100, max(0, analysis.get('spam_score', 50)))
+            
+            # Determine risk level
+            if spam_score < 20:
+                risk_level = "low"
+            elif spam_score < 50:
+                risk_level = "medium"
+            elif spam_score < 75:
+                risk_level = "high"
+            else:
+                risk_level = "critical"
+            
+            return SpamScoreResponse(
+                score=spam_score,
+                risk_level=risk_level,
+                recommendations=analysis.get('recommendations', [])[:5],
+                predicted_inbox_rate=min(100, max(0, analysis.get('predicted_inbox_rate', 70))),
+                details={
+                    "risk_factors": analysis.get('risk_factors', []),
+                    "positive_factors": analysis.get('positive_factors', [])
+                }
+            )
+            
+        except json.JSONDecodeError:
+            # If JSON parsing fails, use basic heuristics
+            return _basic_spam_heuristics(subject, body, mode)
+            
+    except Exception as e:
+        logging.error(f"AI spam analysis failed: {e}")
+        return _basic_spam_heuristics(subject, body, mode)
+
+def _basic_spam_heuristics(subject: str, body: str, mode: str) -> SpamScoreResponse:
+    """Fallback basic spam scoring without AI"""
+    score = 0
+    risk_factors = []
+    recommendations = []
+    
+    # Check subject line
+    spam_words = ['free', 'guarantee', 'no obligation', 'winner', 'cash', 'prize', 'urgent', 'act now', 'limited time']
+    subject_lower = subject.lower()
+    
+    if len(subject) > 60:
+        score += 10
+        risk_factors.append("Subject line too long")
+        recommendations.append("Keep subject under 60 characters")
+    
+    if any(word in subject_lower for word in spam_words):
+        score += 15
+        risk_factors.append("Spam trigger words in subject")
+        recommendations.append("Remove spam trigger words")
+    
+    if subject.isupper():
+        score += 20
+        risk_factors.append("All caps subject line")
+        recommendations.append("Use sentence case")
+    
+    # Check body
+    body_lower = body.lower()
+    link_count = body.count('http://') + body.count('https://')
+    
+    if link_count > 3:
+        score += 15
+        risk_factors.append(f"Too many links ({link_count})")
+        recommendations.append("Reduce links to 1-2 for cold outreach")
+    
+    if any(word in body_lower for word in spam_words):
+        score += 10
+        risk_factors.append("Spam trigger words in body")
+    
+    if len(body) < 50:
+        score += 10
+        risk_factors.append("Email too short")
+        recommendations.append("Add more context (aim for 100-200 words)")
+    
+    # Positive factors
+    if '{{' in body or '{%' in body:
+        score -= 10
+        recommendations.append("Good: Using personalization tokens")
+    
+    if mode == "cold_outreach" and link_count <= 1:
+        score -= 5
+    
+    score = min(100, max(0, score))
+    
+    if score < 20:
+        risk_level = "low"
+    elif score < 50:
+        risk_level = "medium"
+    elif score < 75:
+        risk_level = "high"
+    else:
+        risk_level = "critical"
+    
+    inbox_rate = max(30, 100 - score)
+    
+    if not recommendations:
+        recommendations = ["Your email looks good overall"]
+    
+    return SpamScoreResponse(
+        score=score,
+        risk_level=risk_level,
+        recommendations=recommendations,
+        predicted_inbox_rate=inbox_rate,
+        details={"risk_factors": risk_factors, "positive_factors": []}
+    )
+
 # ============= WARMUP ENGINE =============
 
 async def progress_warmup():
