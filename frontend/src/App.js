@@ -84,6 +84,137 @@ function App() {
             }
           />
           <Route
+            path="/warmup"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <WarmupPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/domains"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <DomainsPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/sending-accounts"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <SendingAccountsPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/contacts"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <ContactsPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/campaigns"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <CampaignsPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/sequences"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <SequencesPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <AnalyticsPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/deliverability"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <DeliverabilityPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/suppression"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <SuppressionPage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
+            path="/upgrade"
+            element={
+              user ? (
+                <Layout user={user} onLogout={handleLogout}>
+                  <UpgradePage user={user} />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+      <Toaster position="top-right" />
+    </div>
+  );
+}
+              ) : (
+                <Navigate to="/auth" />
+              )
+            }
+          />
+          <Route
             path="/domains"
             element={
               user ? (
