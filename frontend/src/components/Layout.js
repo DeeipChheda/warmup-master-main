@@ -63,7 +63,7 @@ export default function Layout({ children, user, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200">
+      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 overflow-y-auto">
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-slate-200">
@@ -78,28 +78,130 @@ export default function Layout({ children, user, onLogout }) {
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
-            {navItems.map((item) => {
+          {/* Primary Navigation */}
+          <nav className="flex-1 p-4 space-y-1">
+            {primaryNav.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
+              const hasFeatureAccess = hasAccess(item.key);
+              const isLocked = !hasFeatureAccess;
+
               return (
-                <Link key={item.path} to={item.path}>
+                <Link 
+                  key={item.path} 
+                  to={isLocked ? '/upgrade' : item.path}
+                  onClick={(e) => {
+                    if (isLocked) {
+                      e.preventDefault();
+                      // Could show modal here
+                    }
+                  }}
+                >
                   <div
-                    data-testid={`nav-${item.label.toLowerCase()}`}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-slate-900 text-white'
+                    data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
+                      isActive && hasFeatureAccess
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : isLocked
+                        ? 'text-slate-400 opacity-60 cursor-not-allowed'
+                        : item.highlight
+                        ? 'text-slate-900 font-semibold hover:bg-slate-100'
                         : 'text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 ${item.highlight && !isActive ? 'text-orange-600' : ''}`} />
+                      <span className="text-sm">{item.label}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {item.badge === 'priority' && !isActive && (
+                        <Flame className="w-3 h-3 text-orange-500" />
+                      )}
+                      {isLocked && <Lock className="w-3 h-3" />}
+                    </div>
                   </div>
                 </Link>
               );
             })}
+
+            {/* Advanced Features Section */}
+            <div className="pt-4">
+              <Separator className="mb-4" />
+              <div className="px-3 mb-2">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Advanced
+                </span>
+              </div>
+              {advancedNav.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                const hasFeatureAccess = hasAccess(item.key);
+                const isLocked = !hasFeatureAccess;
+
+                return (
+                  <Link 
+                    key={item.path} 
+                    to={isLocked ? '/upgrade' : item.path}
+                    onClick={(e) => {
+                      if (isLocked) {
+                        e.preventDefault();
+                      }
+                    }}
+                  >
+                    <div
+                      data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
+                        isActive && hasFeatureAccess
+                          ? 'bg-slate-900 text-white'
+                          : isLocked
+                          ? 'text-slate-400 opacity-60 cursor-not-allowed'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-4 h-4" />
+                        <span className="text-sm">{item.label}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {item.badge && isLocked && (
+                          <Badge className="text-xs px-1.5 py-0 bg-purple-100 text-purple-700 capitalize">
+                            {item.badge}
+                          </Badge>
+                        )}
+                        {isLocked && <Lock className="w-3 h-3" />}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
+
+          {/* Footer Navigation */}
+          <div className="p-4 border-t border-slate-200 space-y-1">
+            {footerNav.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+
+              return (
+                <Link key={item.path} to={item.path}>
+                  <div
+                    data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                      isActive
+                        ? 'bg-slate-900 text-white'
+                        : item.special
+                        ? 'text-green-700 font-semibold hover:bg-green-50'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${item.special ? 'text-green-600' : ''}`} />
+                    <span className="text-sm">{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
 
           {/* User Info */}
           <div className="p-4 border-t border-slate-200">
@@ -108,8 +210,8 @@ export default function Layout({ children, user, onLogout }) {
                 <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-semibold">
                   {user.full_name.charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-900">{user.full_name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{user.full_name}</p>
                   <p className="text-xs text-slate-500 truncate">{user.email}</p>
                 </div>
               </div>
