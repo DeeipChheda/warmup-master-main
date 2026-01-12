@@ -50,6 +50,29 @@ export default function CampaignsPage() {
     }
   };
 
+  const analyzeSpamScore = async () => {
+    if (!formData.subject || !formData.body) {
+      toast.error('Please add subject and body first');
+      return;
+    }
+
+    setAnalyzingSpam(true);
+    try {
+      const domain = domains.find(d => d.id === formData.domain_id);
+      const res = await api.post('/spam-score', {
+        subject: formData.subject,
+        body: formData.body,
+        mode: domain?.mode || 'cold_outreach'
+      });
+      setSpamScore(res.data);
+      toast.success('Spam analysis complete!');
+    } catch (error) {
+      toast.error('Failed to analyze spam score');
+    } finally {
+      setAnalyzingSpam(false);
+    }
+  };
+
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
     try {
@@ -65,6 +88,7 @@ export default function CampaignsPage() {
       toast.success('Campaign created successfully');
       setDialogOpen(false);
       setFormData({ domain_id: '', name: '', subject: '', body: '', recipients: [] });
+      setSpamScore(null);
       loadData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create campaign');
@@ -79,6 +103,17 @@ export default function CampaignsPage() {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to send campaign');
     }
+  };
+
+  const getRiskBadge = (riskLevel) => {
+    const variants = {
+      low: { bg: 'bg-green-100', text: 'text-green-800', label: 'Low Risk' },
+      medium: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Medium Risk' },
+      high: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'High Risk' },
+      critical: { bg: 'bg-red-100', text: 'text-red-800', label: 'Critical Risk' }
+    };
+    const variant = variants[riskLevel] || variants.medium;
+    return <Badge className={`${variant.bg} ${variant.text}`}>{variant.label}</Badge>;
   };
 
   const getStatusBadge = (status) => {
