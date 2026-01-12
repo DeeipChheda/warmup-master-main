@@ -407,7 +407,7 @@ async def progress_warmup():
             # Get user plan limits
             user_doc = await db.users.find_one({"id": domain.user_id}, {"_id": 0})
             if user_doc:
-                plan_limits = get_plan_limits(user_doc.get('plan', 'free'))
+                plan_limits = get_plan_limits(user_doc.get('plan', 'free'), user_doc.get('email'))
                 daily_limit = plan_limits['daily_limit_per_domain']
             else:
                 daily_limit = 20
