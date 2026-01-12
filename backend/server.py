@@ -190,12 +190,26 @@ class SendingAccount(BaseModel):
     warmup_enabled: bool = False
     warmup_day: int = 0
     warmup_completed: bool = False
+    warmup_status: str = "inactive"  # inactive, active, paused, completed
     bounce_rate: float = 0.0
     spam_rate: float = 0.0
     emails_sent_today: int = 0
+    total_emails_sent: int = 0
+    total_replies: int = 0
+    total_opens: int = 0
     last_activity: Optional[datetime] = None
     is_verified: bool = False
     is_paused: bool = False
+    pause_reason: Optional[str] = None
+    # Warmup settings
+    warmup_daily_volume: int = 5
+    warmup_ramp_up: int = 2
+    warmup_reply_rate: float = 30.0
+    warmup_random_delay_min: int = 60
+    warmup_random_delay_max: int = 300
+    warmup_weekend_sending: bool = False
+    warmup_auto_pause_bounce_rate: float = 4.0
+    warmup_auto_pause_spam_threshold: int = 3
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
