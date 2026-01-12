@@ -1,0 +1,100 @@
+{
+  "summary": {
+    "total_tests": 15,
+    "passed_tests": 15,
+    "success_rate": 100.0,
+    "timestamp": "2026-01-12T18:34:19.166643"
+  },
+  "detailed_results": [
+    {
+      "test": "User Registration",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:16.978257"
+    },
+    {
+      "test": "User Login",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.265323"
+    },
+    {
+      "test": "Get User Profile",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.311169"
+    },
+    {
+      "test": "Dashboard Stats",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.361517"
+    },
+    {
+      "test": "Dashboard Stats Fields",
+      "success": true,
+      "details": "All required fields present",
+      "timestamp": "2026-01-12T18:34:17.362151"
+    },
+    {
+      "test": "Domain Creation",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.436164"
+    },
+    {
+      "test": "Get Domains",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.482555"
+    },
+    {
+      "test": "Domain Validation",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.523754"
+    },
+    {
+      "test": "Warmup Logs",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.570913"
+    },
+    {
+      "test": "Plan Limit Test (Second Domain)",
+      "success": true,
+      "details": "Status: 403",
+      "timestamp": "2026-01-12T18:34:17.616104"
+    },
+    {
+      "test": "Contact Creation",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.695073"
+    },
+    {
+      "test": "Get Contacts",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.736171"
+    },
+    {
+      "test": "Campaign Creation",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.812189"
+    },
+    {
+      "test": "Get Campaigns",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:17.853066"
+    },
+    {
+      "test": "Send Campaign",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-12T18:34:19.165754"
+    }
+  ]
+}
