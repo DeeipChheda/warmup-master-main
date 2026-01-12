@@ -312,6 +312,289 @@ class EmailMarketingAPITester:
         )
         return success
 
+    # ============= SENDING ACCOUNTS TESTS =============
+    
+    def test_login_with_credentials(self, email, password):
+        """Test login with specific credentials"""
+        login_data = {
+            "email": email,
+            "password": password
+        }
+        
+        success, response = self.run_test(
+            "Login with Test Credentials",
+            "POST",
+            "auth/login",
+            200,
+            data=login_data
+        )
+        
+        if success and 'token' in response:
+            self.token = response['token']
+            self.user_id = response['user']['id']
+            return True
+        return False
+
+    def test_get_sending_accounts_empty(self):
+        """Test getting sending accounts list (should be empty initially)"""
+        success, response = self.run_test(
+            "Get Sending Accounts (Empty)",
+            "GET",
+            "sending-accounts",
+            200
+        )
+        
+        if success:
+            if isinstance(response, list) and len(response) == 0:
+                self.log_test("Sending Accounts Empty Check", True, "List is empty as expected")
+            else:
+                self.log_test("Sending Accounts Empty Check", False, f"Expected empty list, got: {response}")
+        
+        return success, response if success else []
+
+    def test_create_sending_account(self):
+        """Test creating a new SMTP sending account"""
+        account_data = {
+            "email": "test@example.com",
+            "provider": "smtp",
+            "smtp_host": "smtp.gmail.com",
+            "smtp_port": 587,
+            "smtp_password": "testpass123",
+            "warmup_enabled": True
+        }
+        
+        success, response = self.run_test(
+            "Create Sending Account",
+            "POST",
+            "sending-accounts",
+            200,
+            data=account_data
+        )
+        
+        if success and 'id' in response:
+            # Verify SMTP password is encrypted (not returned in plain text)
+            if response.get('smtp_password_encrypted') == '********':
+                self.log_test("SMTP Password Encryption", True, "Password is properly encrypted")
+            else:
+                self.log_test("SMTP Password Encryption", False, "Password not properly encrypted")
+            return response['id']
+        return None
+
+    def test_get_sending_accounts_with_data(self):
+        """Test getting sending accounts list (should have data now)"""
+        success, response = self.run_test(
+            "Get Sending Accounts (With Data)",
+            "GET",
+            "sending-accounts",
+            200
+        )
+        
+        if success:
+            if isinstance(response, list) and len(response) > 0:
+                self.log_test("Sending Accounts Data Check", True, f"Found {len(response)} account(s)")
+            else:
+                self.log_test("Sending Accounts Data Check", False, "Expected accounts in list")
+        
+        return success, response if success else []
+
+    def test_get_single_sending_account(self, account_id):
+        """Test getting a specific sending account"""
+        if not account_id:
+            self.log_test("Get Single Sending Account", False, "No account ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Get Single Sending Account",
+            "GET",
+            f"sending-accounts/{account_id}",
+            200
+        )
+        
+        if success:
+            # Verify required fields are present
+            required_fields = ['id', 'email', 'provider', 'warmup_enabled']
+            missing_fields = [field for field in required_fields if field not in response]
+            if missing_fields:
+                self.log_test("Account Fields Check", False, f"Missing fields: {missing_fields}")
+            else:
+                self.log_test("Account Fields Check", True, "All required fields present")
+        
+        return success
+
+    def test_verify_sending_account(self, account_id):
+        """Test verifying SMTP connection (will fail due to fake SMTP, but endpoint should work)"""
+        if not account_id:
+            self.log_test("Verify Sending Account", False, "No account ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Verify Sending Account",
+            "POST",
+            f"sending-accounts/{account_id}/verify",
+            400  # Expected to fail with fake SMTP credentials
+        )
+        
+        # This should fail with 400 due to fake SMTP, but endpoint should respond
+        if success:
+            self.log_test("Verify Endpoint Working", True, "Verification endpoint responded as expected")
+        
+        return success
+
+    def test_pause_sending_account(self, account_id):
+        """Test pausing a sending account"""
+        if not account_id:
+            self.log_test("Pause Sending Account", False, "No account ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Pause Sending Account",
+            "POST",
+            f"sending-accounts/{account_id}/pause",
+            200
+        )
+        
+        return success
+
+    def test_resume_sending_account(self, account_id):
+        """Test resuming a paused sending account"""
+        if not account_id:
+            self.log_test("Resume Sending Account", False, "No account ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Resume Sending Account",
+            "POST",
+            f"sending-accounts/{account_id}/resume",
+            200
+        )
+        
+        return success
+
+    def test_get_warmup_stats(self, account_id):
+        """Test getting warmup statistics"""
+        if not account_id:
+            self.log_test("Get Warmup Stats", False, "No account ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Get Warmup Stats",
+            "GET",
+            f"sending-accounts/{account_id}/warmup/stats",
+            200
+        )
+        
+        if success:
+            # Verify required stats fields
+            required_fields = ['total_sent', 'total_delivered', 'reply_rate', 'current_day', 'status']
+            missing_fields = [field for field in required_fields if field not in response]
+            if missing_fields:
+                self.log_test("Warmup Stats Fields", False, f"Missing fields: {missing_fields}")
+            else:
+                self.log_test("Warmup Stats Fields", True, "All required stats fields present")
+        
+        return success
+
+    def test_update_sending_account(self, account_id):
+        """Test updating sending account daily_send_limit"""
+        if not account_id:
+            self.log_test("Update Sending Account", False, "No account ID available")
+            return False
+            
+        update_data = {
+            "daily_send_limit": 100
+        }
+        
+        success, response = self.run_test(
+            "Update Sending Account",
+            "PATCH",
+            f"sending-accounts/{account_id}",
+            200,
+            data=update_data
+        )
+        
+        if success and response.get('daily_send_limit') == 100:
+            self.log_test("Daily Limit Update Check", True, "Daily send limit updated correctly")
+        elif success:
+            self.log_test("Daily Limit Update Check", False, f"Expected daily_send_limit=100, got {response.get('daily_send_limit')}")
+        
+        return success
+
+    def test_delete_sending_account(self, account_id):
+        """Test deleting a sending account"""
+        if not account_id:
+            self.log_test("Delete Sending Account", False, "No account ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Delete Sending Account",
+            "DELETE",
+            f"sending-accounts/{account_id}",
+            200
+        )
+        
+        return success
+
+    def run_sending_accounts_test(self):
+        """Run comprehensive sending accounts API tests"""
+        print("🚀 Starting Sending Accounts API Tests")
+        print(f"📡 Testing against: {self.base_url}")
+        print("=" * 60)
+        
+        # Login with test credentials
+        if not self.test_login_with_credentials("buradkaraditya08@gmail.com", "Founder@123"):
+            print("❌ Login failed, stopping tests")
+            return False
+        
+        # Test 1: Get empty sending accounts list
+        success, accounts = self.test_get_sending_accounts_empty()
+        if not success:
+            print("❌ Failed to get sending accounts list")
+            return False
+        
+        # Test 2: Create new sending account
+        account_id = self.test_create_sending_account()
+        if not account_id:
+            print("❌ Failed to create sending account")
+            return False
+        
+        # Test 3: Verify account appears in list
+        success, accounts = self.test_get_sending_accounts_with_data()
+        if not success:
+            print("❌ Failed to get updated sending accounts list")
+            return False
+        
+        # Test 4: Get single account
+        self.test_get_single_sending_account(account_id)
+        
+        # Test 5: Verify account (expected to fail with fake SMTP)
+        self.test_verify_sending_account(account_id)
+        
+        # Test 6: Pause account
+        self.test_pause_sending_account(account_id)
+        
+        # Test 7: Resume account
+        self.test_resume_sending_account(account_id)
+        
+        # Test 8: Get warmup stats
+        self.test_get_warmup_stats(account_id)
+        
+        # Test 9: Update account
+        self.test_update_sending_account(account_id)
+        
+        # Test 10: Delete account
+        self.test_delete_sending_account(account_id)
+        
+        # Print final results
+        print("\n" + "=" * 60)
+        print(f"📊 Sending Accounts Test Results: {self.tests_passed}/{self.tests_run} tests passed")
+        
+        if self.tests_passed == self.tests_run:
+            print("🎉 All sending accounts tests passed!")
+            return True
+        else:
+            print(f"⚠️  {self.tests_run - self.tests_passed} tests failed")
+            return False
+
     def run_comprehensive_test(self):
         """Run all tests in sequence"""
         print("🚀 Starting Email Marketing SaaS API Tests")
