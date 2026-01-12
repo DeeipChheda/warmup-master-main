@@ -38,7 +38,14 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production'
 JWT_ALGORITHM = 'HS256'
 
 # Founder account configuration (internal use only)
-FOUNDER_EMAIL = "deeip.temp@gmail.com"
+FOUNDER_EMAILS = [
+    "deeip.temp@gmail.com",
+    "buradkaraditya08@gmail.com"
+]
+
+def is_founder_email(email: str) -> bool:
+    """Check if email belongs to a founder account"""
+    return email.lower() in [f.lower() for f in FOUNDER_EMAILS]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
