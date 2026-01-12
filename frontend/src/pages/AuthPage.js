@@ -198,6 +198,18 @@ export default function AuthPage({ setUser }) {
               >
                 {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
               </Button>
+              
+              {isLogin && (
+                <button
+                  data-testid="forgot-password-link"
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              )}
+              
               <button
                 data-testid="toggle-auth-mode"
                 type="button"
