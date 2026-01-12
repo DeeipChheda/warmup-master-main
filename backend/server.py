@@ -839,6 +839,51 @@ async def get_warmup_logs(domain_id: str, current_user: User = Depends(get_curre
     
     return logs
 
+@api_router.get("/suppressed-emails", response_model=List[SuppressedEmail])
+async def get_suppressed_emails(current_user: User = Depends(get_current_user)):
+    emails = await db.suppressed_emails.find({"user_id": current_user.id}, {"_id": 0}).to_list(None)
+    
+    for email in emails:
+        if isinstance(email.get('created_at'), str):
+            email['created_at'] = datetime.fromisoformat(email['created_at'])
+    
+    return emails
+
+@api_router.post("/suppressed-emails", response_model=SuppressedEmail)
+async def add_suppressed_email(email_input: SuppressedEmailCreate, current_user: User = Depends(get_current_user)):
+    # Check if already suppressed
+    existing = await db.suppressed_emails.find_one({
+        "email": email_input.email,
+        "user_id": current_user.id
+    }, {"_id": 0})
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already suppressed")
+    
+    suppressed = SuppressedEmail(
+        user_id=current_user.id,
+        **email_input.model_dump()
+    )
+    
+    suppressed_dict = suppressed.model_dump()
+    suppressed_dict['created_at'] = suppressed_dict['created_at'].isoformat()
+    
+    await db.suppressed_emails.insert_one(suppressed_dict)
+    
+    return suppressed
+
+@api_router.delete("/suppressed-emails/{email_id}")
+async def remove_suppressed_email(email_id: str, current_user: User = Depends(get_current_user)):
+    result = await db.suppressed_emails.delete_one({
+        "id": email_id,
+        "user_id": current_user.id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Suppressed email not found")
+    
+    return {"message": "Email removed from suppression list"}
+
 @api_router.post("/spam-score", response_model=SpamScoreResponse)
 async def check_spam_score(request: SpamScoreRequest, current_user: User = Depends(get_current_user)):
     """Analyze email content for spam risk using AI"""
