@@ -782,6 +782,16 @@ async def get_warmup_logs(domain_id: str, current_user: User = Depends(get_curre
     
     return logs
 
+@api_router.post("/spam-score", response_model=SpamScoreResponse)
+async def check_spam_score(request: SpamScoreRequest, current_user: User = Depends(get_current_user)):
+    """Analyze email content for spam risk using AI"""
+    try:
+        result = await analyze_spam_score(request.subject, request.body, request.mode)
+        return result
+    except Exception as e:
+        logging.error(f"Spam score analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze spam score")
+
 app.include_router(api_router)
 
 app.add_middleware(
